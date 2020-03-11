@@ -61,6 +61,26 @@ for line in r:
             conf_cases["Mainland China"][n]+=int(v)
             n+=1
         conf_delta["Mainland China"]=[0 for x in conf_cases["Mainland China"]]
+    elif line[1]=="US":
+        if "US" not in conf_cases:
+            conf_cases["US"]=[]
+            for v in line[4:]:
+                conf_cases["US"].append(0)
+        n=0
+        for v in line[4:]:
+            conf_cases["US"][n]+=int(v)
+            n+=1
+        conf_delta["US"]=[0 for x in conf_cases["US"]]
+    elif line[1]=="Australia":
+        if "Australia" not in conf_cases:
+            conf_cases["Australia"]=[]
+            for v in line[4:]:
+                conf_cases["Australia"].append(0)
+        n=0
+        for v in line[4:]:
+            conf_cases["Australia"][n]+=int(v)
+            n+=1
+        conf_delta["Australia"]=[0 for x in conf_cases["Australia"]]
     else:
         conf_cases[line[1]]=list(map(toint,line[4:]))
         conf_delta[line[1]]=[0 for x in conf_cases[line[1]]]
@@ -76,12 +96,10 @@ for k,v in conf_cases.items():
         else:
             delta = 0.0
             prev=conf_cases[k][n-1]
-            if prev!=None and prev!=0.0:
+            if prev!=None and prev>=20.0:
                 delta = 100.0*(val - prev)/prev
             conf_delta[k][n]=delta
         n+=1
-
-pass
 
 """
 deaths_csv="csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Deaths.csv"
@@ -131,66 +149,26 @@ ln.set_label('Confirmed (China)')
 lines.append(ln)
 ####
 setup_xaxis(ax[0],"Date",[dt.datetime(2020,1,21),dt.datetime(2020,3,10)],[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
-setup_yaxis(ax[0],"Count",[0,120000],[10000,5000],color='black')
+setup_yaxis(ax[0],"Count",[0,130000],[10000,5000],color='black')
 ax[0].legend(lines, [l.get_label() for l in lines])
 
+countries=["Republic of Korea","Italy","Australia","Iran (Islamic Republic of)","Germany","France"]
+
 lines=[]
-####
-cname="South Korea"
-ln,=ax[1].plot(t2,conf_cases[cname])
-ln.set_label(f'Confirmed ({cname})')
-lines.append(ln)
-####
-cname="Italy"
-ln,=ax[1].plot(t2,conf_cases[cname])
-ln.set_label(f'Confirmed ({cname})')
-lines.append(ln)
-####
-cname="Japan"
-ln,=ax[1].plot(t2,conf_cases[cname])
-ln.set_label(f'Confirmed ({cname})')
-lines.append(ln)
-####
-cname="Iran"
-ln,=ax[1].plot(t2,conf_cases[cname])
-ln.set_label(f'Confirmed ({cname})')
-lines.append(ln)
-####
-cname="Australia"
-ln,=ax[1].plot(t2,conf_cases[cname])
-ln.set_label(f'Confirmed ({cname})')
-lines.append(ln)
+for cname in countries:
+    ln,=ax[1].plot(t2,conf_cases[cname])
+    ln.set_label(f'Confirmed ({cname})')
+    lines.append(ln)
 ####
 setup_xaxis(ax[1],"Date",[dt.datetime(2020,1,21),dt.datetime(2020,3,10)],[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
-setup_yaxis(ax[1],"Count",[0,8000],[1000,500],color='black')
+setup_yaxis(ax[1],"Count",[0,12000],[1000,500],color='black')
 ax[1].legend(lines, [l.get_label() for l in lines])
 
 lines=[]
-####
-cname="South Korea"
-ln,=ax[2].plot(t2,conf_delta[cname])
-ln.set_label(f'Confirmed ({cname})')
-lines.append(ln)
-####
-cname="Italy"
-ln,=ax[2].plot(t2,conf_delta[cname])
-ln.set_label(f'Confirmed ({cname})')
-lines.append(ln)
-####
-cname="Japan"
-ln,=ax[2].plot(t2,conf_delta[cname])
-ln.set_label(f'Confirmed ({cname})')
-lines.append(ln)
-####
-cname="Iran"
-ln,=ax[2].plot(t2,conf_delta[cname])
-ln.set_label(f'Confirmed ({cname})')
-lines.append(ln)
-####
-cname="Australia"
-ln,=ax[2].plot(t2,conf_delta[cname])
-ln.set_label(f'Confirmed ({cname})')
-lines.append(ln)
+for cname in countries:
+    ln,=ax[2].plot(t2,conf_delta[cname])
+    ln.set_label(f'Confirmed ({cname})')
+    lines.append(ln)
 ####
 setup_xaxis(ax[2],"Date",[dt.datetime(2020,1,21),dt.datetime(2020,3,10)],[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
 setup_yaxis(ax[2],"Growth (%)",[0,100],[10,5],color='black')
