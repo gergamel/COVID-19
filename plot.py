@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import math
 import csv
 import datetime as dt
 import matplotlib.pyplot as plt
@@ -51,16 +51,16 @@ t2=list(map(todate,r.__next__()[4:]))            # Headings
 global_cases=[0 for t in t2]
 for line in r:
     #Province/State,Country/Region,Lat,Long,1/22/20,etc...
-    if line[1]=="Mainland China":
-        if "Mainland China" not in conf_cases:
-            conf_cases["Mainland China"]=[]
+    if line[1]=="China":
+        if "China" not in conf_cases:
+            conf_cases["China"]=[]
             for v in line[4:]:
-                conf_cases["Mainland China"].append(0)
+                conf_cases["China"].append(0)
         n=0
         for v in line[4:]:
-            conf_cases["Mainland China"][n]+=int(v)
+            conf_cases["China"][n]+=int(v)
             n+=1
-        conf_delta["Mainland China"]=[0 for x in conf_cases["Mainland China"]]
+        conf_delta["China"]=[0 for x in conf_cases["China"]]
     elif line[1]=="US":
         if "US" not in conf_cases:
             conf_cases["US"]=[]
@@ -90,7 +90,6 @@ for k,v in conf_cases.items():
     n=0
     for val in v:
         global_cases[n]+=int(val)
-        
         if val == None:
             conf_delta[k][n]=0.0
         else:
@@ -137,31 +136,38 @@ def setup_yaxis(axis,label,limits,tick_spacing,color='black'):
     axis.grid(axis='y',which='minor',visible=True,color=color,alpha=0.25,linestyle=':')
     axis.set_ylim(limits)
 
-fig, ax = plt.subplots(3,1)
+xlims=[min(t2),max(t2)]
+
+fig, ax = plt.subplots(2,1)
+"""
 lines=[]
 ####
 ln,=ax[0].plot(t2,global_cases)
 ln.set_label('Confirmed (Global)')
 lines.append(ln)
 ####
-ln,=ax[0].plot(t2,conf_cases["Mainland China"])
+ln,=ax[0].plot(t2,conf_cases["China"])
 ln.set_label('Confirmed (China)')
 lines.append(ln)
 ####
-setup_xaxis(ax[0],"Date",[dt.datetime(2020,1,21),dt.datetime(2020,3,10)],[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
-setup_yaxis(ax[0],"Count",[0,130000],[10000,5000],color='black')
+y_max=10000*math.ceil(max(global_cases)/10000)
+setup_xaxis(ax[0],"Date",xlims,[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
+setup_yaxis(ax[0],"Count",[0,y_max],[10000,5000],color='black')
 ax[0].legend(lines, [l.get_label() for l in lines])
-
-countries=["Republic of Korea","Italy","Australia","Iran (Islamic Republic of)","Germany","France"]
+countries=["Korea, South","Italy","Australia","Iran","Germany","France"]
+"""
 
 lines=[]
+y_max=0
 for cname in countries:
     ln,=ax[1].plot(t2,conf_cases[cname])
     ln.set_label(f'Confirmed ({cname})')
     lines.append(ln)
+    new_y_max=1000*math.ceil(max(conf_cases[cname])/1000)
+    if new_y_max > y_max: y_max=new_y_max
 ####
-setup_xaxis(ax[1],"Date",[dt.datetime(2020,1,21),dt.datetime(2020,3,10)],[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
-setup_yaxis(ax[1],"Count",[0,12000],[1000,500],color='black')
+setup_xaxis(ax[1],"Date",xlims,[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
+setup_yaxis(ax[1],"Count",[0,y_max],[1000,500],color='black')
 ax[1].legend(lines, [l.get_label() for l in lines])
 
 lines=[]
@@ -170,7 +176,7 @@ for cname in countries:
     ln.set_label(f'Confirmed ({cname})')
     lines.append(ln)
 ####
-setup_xaxis(ax[2],"Date",[dt.datetime(2020,1,21),dt.datetime(2020,3,10)],[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
+setup_xaxis(ax[2],"Date",xlims,[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
 setup_yaxis(ax[2],"Growth (%)",[0,100],[10,5],color='black')
 ax[2].legend(lines, [l.get_label() for l in lines])
 
