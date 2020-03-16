@@ -133,7 +133,7 @@ class Session():
     def get_regions(self):
         return self.c.execute("SELECT DISTINCT region FROM location ORDER BY region;")
     def region_total_cases(self):
-        return self.c.execute("""SELECT l.region, MAX(d.cases) AS cases
+        return self.c.execute("""SELECT l.region, MAX(d.cases) AS cases, MAX(d.deaths) as deaths
         FROM data AS d JOIN location AS l ON d.location_id=l.id
         GROUP BY l.region ORDER BY cases;""")
     def case_series(self,state,x_offset=dt.datetime(2020, 2, 20)):
@@ -227,17 +227,6 @@ def setup_logyaxis(axis,label,limits,tick_spacing,color='black'):
     axis.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
     axis.set_ylim(limits)
 
-##########################################################################################
-# DATA MODEL
-##########################################################################################
-
-#c.execute('''CREATE TABLE IF NOT EXISTS location (id INTEGER NOT NULL PRIMARY KEY, state text, region text, lat real, long real);''')
-#c.execute('''CREATE TABLE IF NOT EXISTS data (location_id, date integer, cases integer, deaths integer);''')
-
-##########################################################################################
-
-#conn = sqlite3.connect(DB_FILE)
-#c = conn.cursor()
 c=Session()
 
 for r in c.region_total_cases():
@@ -247,8 +236,8 @@ plot_regions=(
 'Japan',
 'Singapore',
 'Korea, South',
-'Spain',
 'Netherlands',
+'Switzerland',
 'United Kingdom',
 'Italy',
 'US',
@@ -267,23 +256,29 @@ for r in plot_regions:
 
 c.close()
 ##########################################################################################
-fig, ax = plt.subplots(2,1)
+#fig, ax = plt.subplots(2,1)
+fig, ax = plt.subplots()
 lines=[]
 tmax=0
 ymax=0
-for s in case_data:
+for n in range(0,len(case_data)):
+    s=case_data[n]
+    drate=100.0*(death_data[n].y[-1]/case_data[n].y[-1])
     stmax=np.nanmax(s.t)
     if stmax>tmax: tmax=stmax
     symax=10000*np.ceil(np.nanmax(s.y)/10000)
     if symax>ymax: ymax=symax
-    ln,=ax[0].semilogy(s.t,s.y)
-    ln.set_label(f'{s.name}')
+    ln,=ax.semilogy(s.t,s.y)
+    ln.set_label(f'{s.name} ({drate:.1f}%)')
     lines.append(ln)
-setup_xaxis(ax[0],"Days Since 20-Feb",[0,tmax],[10,1],color='black')
-setup_logyaxis(ax[0],"Confirmed Cases",[100,ymax],[ymax/10,ymax/20],color='black')
-ax[0].legend(lines, [l.get_label() for l in lines])
-#plt.title("John-Hopkins CSSE COVID-19 Data")
+setup_xaxis(ax,"Days Since 20-Feb",[0,tmax],[5,1],color='black')
+setup_logyaxis(ax,"Confirmed Cases",[100,ymax],[ymax/10,ymax/20],color='black')
+ax.legend(lines, [l.get_label() for l in lines])
+plt.title("COVID-19 Cases (fatality rate in parentheses)")
+plt.show()
 ##########################################################################################
+"""
+fig, ax = plt.subplots()
 lines=[]
 tmax=0
 ymax=0
@@ -294,186 +289,13 @@ for n in range(0,len(case_data)):
     if stmax>tmax: tmax=stmax
     symax=np.ceil(np.nanmax(y))
     if symax>ymax: ymax=symax
-    ln,=ax[1].plot(t,y)
+    ln,=ax.plot(t,y)
     ln.set_label(f'{case_data[n].name} ({y[-1]:.1f}%)')
     lines.append(ln)
-setup_xaxis(ax[1],"Days Since 20-Feb",[0,tmax],[10,1],color='black')
-setup_yaxis(ax[1],"Death rate (%)",[0,ymax],[ymax/10,ymax/20],color='black')
-ax[1].legend(lines, [l.get_label() for l in lines])
+setup_xaxis(ax,"Days Since 20-Feb",[0,tmax],[10,1],color='black')
+setup_yaxis(ax,"Death rate (%)",[0,ymax],[ymax/10,ymax/20],color='black')
+ax.legend(lines, [l.get_label() for l in lines])
+plt.title("John-Hopkins CSSE COVID-19 Data")
 plt.show()
+"""
 exit(0)
-##########################################################################################
-
-"""
-f=open('who_covid_19_situation_reports/who_covid_19_sit_rep_time_series/who_covid_19_sit_rep_time_series.csv')
-r=csv.reader(f, delimiter=',')
-t=list(map(todate,r.__next__()[3:]))            # Headings
-conf_global=list(map(toint,r.__next__()[3:]))     # Confirmed cases - Globally
-conf_china=list(map(toint,r.__next__()[3:]))      # Confirmed cases - Mainland China
-conf_non_china=list(map(toint,r.__next__()[3:]))  # Confirmed cases - Outside of China
-sus_china=list(map(toint,r.__next__()[3:]))       # Suspected cases - China
-sev_china=list(map(toint,r.__next__()[3:]))       # Severe cases - China
-deaths_china=list(map(toint,r.__next__()[3:]))    # Deaths - China
-countries={}
-country_delta={}
-for line in r:
-    if line[1]!="China":
-        countries[line[1]]=list(map(toint,line[3:]))
-        country_delta[line[1]]=[]
-"""
-
-conf_csv="csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv"
-f=open(conf_csv)
-r=csv.reader(f, delimiter=',')
-conf_cases={}
-conf_cases_offset={}
-conf_delta={}
-country_t={}
-t2=list(map(todate,r.__next__()[4:]))            # Headings
-global_cases=[0 for t in t2]
-
-def accumulate_country(country):
-    if line[1]==country:
-        if country not in conf_cases:
-            conf_cases[country]=[]
-            for v in line[4:]:
-                conf_cases[country].append(0)
-        n=0
-        for v in line[4:]:
-            try:
-                conf_cases[country][n]+=int(v)
-            except ValueError:
-                pass
-            n+=1
-        conf_delta[country]=[0 for x in conf_cases[country]]
-
-acc_countries=["China","US","Australia"]
-for line in r:
-    #Province/State,Country/Region,Lat,Long,1/22/20,etc...
-    if line[1] not in acc_countries:
-        conf_cases[line[1]]=list(map(toint,line[4:]))
-        conf_delta[line[1]]=[0 for x in conf_cases[line[1]]]
-    else:
-        accumulate_country("China")
-        accumulate_country("US")
-        accumulate_country("Australia")
-f.close()
-
-def offset_t(t,offset):
-    result = t
-    n=0
-    for tval in result:
-        result[n]=tval-offset
-        n+=1
-    return result
-
-for k,v in conf_cases.items():
-    n=0
-    for val in v:
-        if val == None:
-            conf_delta[k][n]=0.0
-        else:
-            if k not in conf_cases_offset:
-                if int(val) >= 100.0:
-                    conf_cases_offset[k]=t2[n]
-                    country_t=offset_t(t2,t2[n])
-            global_cases[n]+=int(val)
-            delta = 0.0
-            prev=conf_cases[k][n-1]
-            if prev!=None and prev>=20.0:
-                delta = 100.0*(val - prev)/prev
-            conf_delta[k][n]=delta
-        n+=1
-
-#print(conf_cases_offset)
-
-"""
-deaths_csv="csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Deaths.csv"
-for k,count in countries.items():
-    n=0
-    for v in count:
-        if v == None:
-            country_delta[k].append(None)
-        else:
-            delta = None
-            prev=countries[k][n-1]
-            if prev!=None:
-                delta = 100.0*(v - prev)/prev
-            country_delta[k].append(delta)
-        n+=1
-f.close()
-"""
-
-def setup_xaxis(axis,label,limits,tick_spacing,color='black'):
-    axis.set_xlabel(label,color=color)
-    axis.set_xticks(np.arange(limits[0],limits[1]+dt.timedelta(seconds=1), tick_spacing[0]))
-    axis.set_xticks(np.arange(limits[0],limits[1]+dt.timedelta(seconds=1), tick_spacing[1]), minor=True)
-    axis.tick_params(axis='y',which='both',labelcolor=color)
-    axis.grid(axis='x',which='major',visible=True,color=color,alpha=0.5,linestyle=':')
-    axis.grid(axis='x',which='minor',visible=True,color=color,alpha=0.25,linestyle=':')
-    axis.xaxis.set_major_formatter(mdates.DateFormatter('%d-%b'))
-    axis.set_xlim(limits)
-
-def setup_yaxis(axis,label,limits,tick_spacing,color='black'):
-    axis.set_ylabel(label,color=color)
-    axis.set_yticks(np.arange(limits[0],limits[1]+0.001, tick_spacing[0]))
-    axis.set_yticks(np.arange(limits[0],limits[1]+0.001, tick_spacing[1]), minor=True)
-    axis.tick_params(axis='y',which='both',labelcolor=color)
-    axis.grid(axis='y',which='major',visible=True,color=color,alpha=0.5,linestyle=':')
-    axis.grid(axis='y',which='minor',visible=True,color=color,alpha=0.25,linestyle=':')
-    axis.set_ylim(limits)
-
-def setup_logyaxis(axis,label,limits,tick_spacing,color='black'):
-    axis.set_ylabel(label,color=color)
-    #axis.set_yticks(np.arange(limits[0],limits[1]+0.001, tick_spacing[0]))
-    #axis.set_yticks(np.arange(limits[0],limits[1]+0.001, tick_spacing[1]), minor=True)
-    #axis.tick_params(axis='y',which='both',labelcolor=color)
-    axis.grid(axis='y',which='major',visible=True,color=color,alpha=0.5,linestyle=':')
-    axis.grid(axis='y',which='minor',visible=True,color=color,alpha=0.25,linestyle=':')
-    axis.set_ylim(limits)
-
-xlims=[min(t2),max(t2)]
-
-fig, ax = plt.subplots(2,1)
-"""
-lines=[]
-####
-ln,=ax[0].plot(t2,global_cases)
-ln.set_label('Confirmed (Global)')
-lines.append(ln)
-####
-ln,=ax[0].plot(t2,conf_cases["China"])
-ln.set_label('Confirmed (China)')
-lines.append(ln)
-####
-y_max=10000*math.ceil(max(global_cases)/10000)
-setup_xaxis(ax[0],"Date",xlims,[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
-setup_yaxis(ax[0],"Count",[0,y_max],[10000,5000],color='black')
-ax[0].legend(lines, [l.get_label() for l in lines])
-"""
-countries=["Korea, South","Italy","Australia","Iran","Germany","France"]
-
-lines=[]
-y_max=0
-for cname in countries:
-    ln,=ax[0].semilogy(country_t[cname],conf_cases[cname])
-    ln.set_label(f'Confirmed ({cname})')
-    lines.append(ln)
-    new_y_max=1000*math.ceil(max(conf_cases[cname])/1000)
-    if new_y_max > y_max: y_max=new_y_max
-####
-setup_xaxis(ax[0],"Date",xlims,[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
-setup_logyaxis(ax[0],"Count",[0,y_max],[y_max/10,y_max/50],color='black')
-ax[0].legend(lines, [l.get_label() for l in lines])
-
-lines=[]
-for cname in countries:
-    ln,=ax[1].plot(t2,conf_delta[cname])
-    ln.set_label(f'Confirmed ({cname})')
-    lines.append(ln)
-####
-setup_xaxis(ax[1],"Date",xlims,[dt.timedelta(days=10),dt.timedelta(days=1)],color='black')
-setup_yaxis(ax[1],"Growth (%)",[0,100],[10,2],color='black')
-ax[1].legend(lines, [l.get_label() for l in lines])
-
-plt.show()
