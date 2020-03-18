@@ -219,12 +219,13 @@ from matplotlib.ticker import StrMethodFormatter, NullFormatter
 
 def setup_logyaxis(axis,label,limits,tick_spacing,color='black'):
     axis.set_ylabel(label,color=color)
-    #axis.set_yticks(np.arange(limits[0],limits[1]+0.001, tick_spacing[0]))
-    #axis.set_yticks(np.arange(limits[0],limits[1]+0.001, tick_spacing[1]), minor=True)
+    #axis.set_yticks(np.arange(limits[0],limits[1], tick_spacing[0]))
+    #axis.set_yticks(np.arange(limits[0],limits[1], tick_spacing[1]), minor=True)
     #axis.tick_params(axis='y',which='both',labelcolor=color)
-    axis.grid(axis='y',which='major',visible=True,color=color,alpha=0.5,linestyle=':')
-    axis.grid(axis='y',which='minor',visible=True,color=color,alpha=0.25,linestyle=':')
+    axis.grid(axis='y',which='major',visible=True,color=color,alpha=0.5,linestyle='-')
+    axis.grid(axis='y',which='minor',visible=True,color=color,alpha=0.25,linestyle='-')
     axis.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
+    axis.yaxis.set_minor_formatter(NullFormatter())
     axis.set_ylim(limits)
 
 c=Session()
@@ -233,15 +234,15 @@ for r in c.region_total_cases():
     print(r)
 
 plot_regions=(
-'Japan',
 'Singapore',
-'Korea, South',
-'Netherlands',
-'Switzerland',
-'United Kingdom',
-'Italy',
-'US',
 'Australia',
+'Japan',
+'Netherlands',
+'United Kingdom',
+'US',
+'Germany',
+'Korea, South',
+'Italy',
 )
 
 case_data = []
@@ -257,7 +258,7 @@ for r in plot_regions:
 c.close()
 ##########################################################################################
 #fig, ax = plt.subplots(2,1)
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(11, 6), dpi=100)
 lines=[]
 tmax=0
 ymax=0
@@ -266,15 +267,17 @@ for n in range(0,len(case_data)):
     drate=100.0*(death_data[n].y[-1]/case_data[n].y[-1])
     stmax=np.nanmax(s.t)
     if stmax>tmax: tmax=stmax
-    symax=10000*np.ceil(np.nanmax(s.y)/10000)
+    max_cases=np.nanmax(s.y)
+    symax=10000*np.ceil(max_cases/10000)
     if symax>ymax: ymax=symax
     ln,=ax.semilogy(s.t,s.y)
-    ln.set_label(f'{s.name} ({drate:.1f}%)')
+    ln.set_label(f'{s.name} ({max_cases:.0f}, {drate:.1f}%)')
     lines.append(ln)
+#tmax=35
 setup_xaxis(ax,"Days Since 20-Feb",[0,tmax],[5,1],color='black')
 setup_logyaxis(ax,"Confirmed Cases",[100,ymax],[ymax/10,ymax/20],color='black')
 ax.legend(lines, [l.get_label() for l in lines])
-plt.title("COVID-19 Cases (fatality rate in parentheses)")
+plt.title("COVID-19 Cumulative Cases (latest count, fatality rate)")
 plt.show()
 ##########################################################################################
 """
