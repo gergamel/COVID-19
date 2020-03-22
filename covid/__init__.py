@@ -67,8 +67,17 @@ class Session():
                 n+=1
         f.close()
         self.conn.commit()
+    def new_data(self,loc_id,date,cases,deaths):
+        self.c.execute('INSERT INTO data (location_id, date, cases, deaths) VALUES (?,?,?,?)',(loc_id,int(date.timestamp()),cases,deaths))
+        self.conn.commit()
     def find_location(self,state,region):
         rows=self.c.execute('SELECT * from location WHERE state=? AND region=?',(state,region))
+        result=list(rows)
+        if len(result)!=1:
+            return None
+        return to_location(result[0])
+    def find_state(self,state):
+        rows=self.c.execute('SELECT * from location WHERE state=?',(state,))
         result=list(rows)
         if len(result)!=1:
             return None
@@ -157,7 +166,7 @@ class Session():
         sql_str=f"""SELECT d.date, d.cases
         FROM data AS d JOIN location AS l ON d.location_id=l.id
         WHERE l.state='{state}'
-        GROUP BY d.date;"""
+        ORDER BY d.date;"""
         results=self.c.execute(sql_str)
         dates,cases=zip(*results)
         t=np.array(dates, dtype=np.float)
