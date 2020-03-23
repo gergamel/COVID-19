@@ -93,12 +93,13 @@ for s in soup.findAll('script'):
             if r[0] in keymap:
                 k=keymap[r[0]]
                 cases=r[1]
-                deaths=r[3]
+                deaths=r[4]
                 case_data[k]=float(cases)
                 death_data[k]=float(deaths)
 
 
-new_fetch_date=dt.datetime.now()
+fetch_date_str=dt.datetime.now().strftime('%Y-%m-%d')
+fetch_date=dt.datetime.strptime(fetch_date_str,'%Y-%m-%d')
 
 """
 url="https://www.health.gov.au/news/health-alerts/novel-coronavirus-2019-ncov-health-alert/coronavirus-covid-19-current-situation-and-case-numbers"
@@ -147,9 +148,9 @@ for state in case_data.keys():
     s=c.case_series(state)
     last_ts=dt.datetime.fromtimestamp(int(s.t[-1]))
     last_date=last_ts.strftime('%d-%b')
-    #new_date=new_fetch_date.strftime('%d-%b')
+    #new_date=fetch_date.strftime('%d-%b')
     #print(f'{k},{new_date},{data[k]} [{last_date},{s.y[-1]}]')
     if case_data[state]>s.y[-1]:
         location=c.find_state(state)
-        c.new_data(location.id,new_fetch_date,case_data[state],death_data[state])
-        print(f"Inserted new data record: {state},{new_fetch_date.strftime('%d-%b')},{cases} [Last {last_date},{s.y[-1]}]")
+        c.new_data(location.id,fetch_date,case_data[state],death_data[state])
+        print(f"Inserted new data record: {state},{fetch_date.strftime('%d-%b')},{case_data[state]},{death_data[state]} [Last {last_date},{s.y[-1]}]")

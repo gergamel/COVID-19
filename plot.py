@@ -71,10 +71,10 @@ plot_regions=(
 'France',
 'Korea, South',
 'United Kingdom',
-'Canada',
-'Japan',
+#'Canada',
+#'Japan',
 'Australia',
-'Singapore',
+#'Singapore',
 )
 
 plot_colours={
@@ -148,13 +148,13 @@ case_data = []
 for r in plot_regions:
     case_data.append(c.region_case_series(r))
 #case_data.append(c.case_series('Hong Kong'))
-case_data.append(c.case_series('Western Australia'))
+#case_data.append(c.case_series('Western Australia'))
 
 death_data = []
 for r in plot_regions:
     death_data.append(c.region_death_series(r))
 #death_data.append(c.death_series('Hong Kong'))
-death_data.append(c.death_series('Western Australia'))
+#death_data.append(c.death_series('Western Australia'))
 """
 drate_data = []
 for r in plot_regions:
@@ -165,7 +165,7 @@ active_data = []
 for r in plot_regions:
     active_data.append(c.region_active_series(r))
 #active_data.append(c.active_series('Hong Kong'))
-active_data.append(c.active_series('Western Australia'))
+#active_data.append(c.active_series('Western Australia'))
 
 """
 recovered_data = []
@@ -200,7 +200,7 @@ tmax=dt.datetime.fromtimestamp(int(tmax_ts))
 
 n=0
 for n in range(0,len(active_data)):
-    s=active_data[n]
+    s=case_data[n]
     drate=100.0*(death_data[n].y[-1]/case_data[n].y[-1])
     max_cases=np.nanmax(s.y)
     t=[]
