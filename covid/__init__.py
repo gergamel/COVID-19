@@ -11,6 +11,9 @@ DB_FILE="csse_covid_19.db"
 def todate(str_date):
     return dt.datetime.strptime(str_date,'%m/%d/%y')
 
+def todate_mmddyyyy(str_date):
+    return dt.datetime.strptime(str_date,'%m/%d/%Y')
+
 def toint(str_int):
     try:
         return int(str_int)
@@ -21,7 +24,8 @@ def toint(str_int):
 Location=namedtuple("location", ('id','state','region','lat','long'))
 Data=namedtuple("data", ('id','location_id', 'date', 'cases', 'deaths', 'recovered'))
 TimeSeries=namedtuple("Series",('t','y'))
-NamedTimeSeries=namedtuple("NamedData",('name','t','y'))
+NamedTimeSeries=namedtuple("NamedTimeSeries",('name','t','y'))
+FullSeries=namedtuple("FullSeries",('location','dates','cases','deaths','recovered'))
 
 def to_location(row):
      return Location(id=row[0],state=row[1],region=row[2],lat=row[3],long=row[4])
@@ -41,10 +45,10 @@ class Session():
         self.c.execute('''DROP TABLE IF EXISTS location;''')
         self.conn.commit()
         self.c.execute('''CREATE TABLE IF NOT EXISTS location (id INTEGER NOT NULL PRIMARY KEY, state text NOT NULL, region text NOT NULL, lat real, long real);''')
-        self.c.execute('''CREATE TABLE IF NOT EXISTS data (id INTEGER NOT NULL PRIMARY KEY, location_id NOT NULL, date int NOT NULL, cases integer, deaths integer, recovered integer);''')
+        self.c.execute('''CREATE TABLE IF NOT EXISTS data (id INTEGER NOT NULL PRIMARY KEY, location_id NOT NULL, date int NOT NULL, cases integer, deaths integer, recovered integer);''')       
     def import_data(self):
         # Confirmed cases
-        f=open("csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv",'r')
+        f=open("csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv",'r')
         r=csv.reader(f, delimiter=',')
         """
         Headers in the CSV are:
@@ -58,18 +62,31 @@ class Session():
         """
         date_row=list(map(todate,r.__next__()[4:]))
         for line in r:
-            self.c.execute('INSERT INTO location (state, region, lat, long) VALUES (?,?,?,?)',line[0:4])
-            #c.execute('INSERT INTO location (state, region, lat, long) VALUES (?,?,?,?)',line[0:4])
-            loc_id=self.c.lastrowid
+            loc_id=self.new_location(line[0],line[1],line[2],line[3])
             n=0
             for v in map(toint,line[4:]):
                 self.c.execute('INSERT INTO data (location_id, date, cases, deaths, recovered) VALUES (?,?,?,?,?)',(loc_id,int(date_row[n].timestamp()),v,None,None))
                 n+=1
         f.close()
         self.conn.commit()
-    def new_data(self,loc_id,date,cases,deaths):
-        self.c.execute('INSERT INTO data (location_id, date, cases, deaths) VALUES (?,?,?,?)',(loc_id,int(date.timestamp()),cases,deaths))
+    def new_data(self,loc_id,date,cases,deaths,recovered):
+        self.c.execute('INSERT INTO data (location_id, date, cases, deaths, recovered) VALUES (?,?,?,?,?)',(loc_id,int(date.timestamp()),cases,deaths,recovered))
         self.conn.commit()
+    def new_location(self,state,region,lat,long):
+        self.c.execute('INSERT INTO location (state, region, lat, long) VALUES (?,?,?,?)',(state,region,lat,long,))
+        return self.c.lastrowid
+    def find_location_by_state(self,state):
+        rows=self.c.execute('SELECT * from location WHERE state=?',(state,))
+        result=list(rows)
+        if len(result)!=1:
+            return None
+        return to_location(result[0])
+    def find_region(self,region):
+        rows=self.c.execute('SELECT * from location WHERE region=?',(region,))
+        result=list(rows)
+        if len(result)==0:
+            return None
+        return to_location((result[0][0],result[0][2],result[0][2],result[0][3],result[0][4]))
     def find_location(self,state,region):
         rows=self.c.execute('SELECT * from location WHERE state=? AND region=?',(state,region))
         result=list(rows)
@@ -110,39 +127,43 @@ class Session():
         self.conn.commit()
         f.close()
         """
-        f=open("csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Deaths.csv",'r')
+        f=open("csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv",'r')
         rdr=csv.reader(f, delimiter=',')
         date_row=list(map(todate,rdr.__next__()[4:]))
         for line in rdr:
             loc=self.find_location(line[0],line[1])
             if loc is None:
-                print(f"MISSING LOCATION: {line}")
-                continue
-            print(loc)
+                loc_id=self.new_location(line[0],line[1],line[2],line[3])
+                print(line[1], line[0])
+            else:
+                loc_id=loc.id
+                print(loc.region, loc.state)
             n=0
             for v in map(toint,line[4:]):
-                d=self.find_data(loc.id,int(date_row[n].timestamp()))
+                d=self.find_data(loc_id,int(date_row[n].timestamp()))
                 if d is None:
-                    self.c.execute('INSERT INTO data (location_id, date, deaths) VALUES (?,?,?)',(loc.id,int(date_row[n].timestamp()),v))
+                    self.c.execute('INSERT INTO data (location_id, date, deaths) VALUES (?,?,?)',(loc_id,int(date_row[n].timestamp()),v))
                 else:
                     self.c.execute('UPDATE data SET deaths=? WHERE id=?',(v,d.id))
                 n+=1
         self.conn.commit()
         f.close()
-        f=open("csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Recovered.csv",'r')
+        f=open("csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv",'r')
         rdr=csv.reader(f, delimiter=',')
         date_row=list(map(todate,rdr.__next__()[4:]))
         for line in rdr:
             loc=self.find_location(line[0],line[1])
             if loc is None:
-                print(f"MISSING LOCATION: {line}")
-                continue
-            print(loc)
+                loc_id=self.new_location(line[0],line[1],line[2],line[3])
+                print(line[1], line[0])
+            else:
+                loc_id=loc.id
+                print(loc.region, loc.state)
             n=0
             for v in map(toint,line[4:]):
-                d=self.find_data(loc.id,int(date_row[n].timestamp()))
+                d=self.find_data(loc_id,int(date_row[n].timestamp()))
                 if d is None:
-                    self.c.execute('INSERT INTO data (location_id, date, recovered) VALUES (?,?,?)',(loc.id,int(date_row[n].timestamp()),v))
+                    self.c.execute('INSERT INTO data (location_id, date, recovered) VALUES (?,?,?)',(loc_id,int(date_row[n].timestamp()),v))
                 else:
                     self.c.execute('UPDATE data SET recovered=? WHERE id=?',(v,d.id))
                 n+=1
@@ -162,6 +183,34 @@ class Session():
         return self.c.execute("""SELECT l.region, MAX(d.cases) AS cases, MAX(d.deaths) as deaths, MAX(d.recovered) as recovered
         FROM data AS d JOIN location AS l ON d.location_id=l.id
         GROUP BY l.region ORDER BY cases;""")
+    def state_series(self,state):
+        loc=self.find_location_by_state(state)
+        sql_str=f"""SELECT d.date, d.cases, d.deaths, d.recovered
+        FROM data AS d WHERE d.location_id={loc.id} ORDER BY d.date;"""
+        results=self.c.execute(sql_str)
+        dates,cases,deaths,recovered=zip(*results)
+        return FullSeries(
+            location=loc,
+            dates=np.array(dates, dtype=np.float),
+            cases=np.array(cases, dtype=np.float),
+            deaths=np.array(deaths, dtype=np.float),
+            recovered=np.array(recovered, dtype=np.float)
+        )
+    def region_series(self,region):
+        loc=self.find_region(region)
+        sql_str=f"""SELECT d.date, SUM(d.cases) AS cases, SUM(d.deaths) AS deaths, SUM(d.recovered) AS recovered
+        FROM data AS d JOIN location AS l ON d.location_id=l.id
+        WHERE l.region='{region}' GROUP BY d.date ORDER BY d.date;"""
+        results=self.c.execute(sql_str)
+        dates,cases,deaths,recovered=zip(*results)
+        return FullSeries(
+            location=loc,
+            dates=np.array(dates, dtype=np.float),
+            cases=np.array(cases, dtype=np.float),
+            deaths=np.array(deaths, dtype=np.float),
+            recovered=np.array(recovered, dtype=np.float)
+        )
+    #def region_series(self,state):
     def case_series(self,state):
         sql_str=f"""SELECT d.date, d.cases
         FROM data AS d JOIN location AS l ON d.location_id=l.id

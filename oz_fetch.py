@@ -152,5 +152,5 @@ for state in case_data.keys():
     #print(f'{k},{new_date},{data[k]} [{last_date},{s.y[-1]}]')
     if case_data[state]>s.y[-1]:
         location=c.find_state(state)
-        c.new_data(location.id,fetch_date,case_data[state],death_data[state])
+        c.new_data(location.id,fetch_date,case_data[state],death_data[state],0)
         print(f"Inserted new data record: {state},{fetch_date.strftime('%d-%b')},{case_data[state]},{death_data[state]} [Last {last_date},{s.y[-1]}]")

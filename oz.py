@@ -67,23 +67,43 @@ def setup_logyaxis(axis,label,limits,tick_spacing,color='black'):
 
 c=covid.Session()
 
+now=dt.datetime.now()
+
 wa_only=True
+#t0_0=int(dt.datetime(2020,3,12).timestamp())
+#t0_1=int(dt.datetime(2020,3,16).timestamp())
+#t0_2=int(dt.datetime(2020,3,20).timestamp())
 t0_0=int(dt.datetime(2020,3,12).timestamp())
-t0_1=int(dt.datetime(2020,3,18).timestamp())
+t0_1=int((now-dt.timedelta(days=14)).timestamp())
+t0_2=int((now-dt.timedelta(days=7)).timestamp())
+fit0label = f"Best fit since first 10 cases (since {dt.datetime.fromtimestamp(t0_0).strftime('%d-%b')})"
+fit1label = f"Best fit of last 14 days (since {dt.datetime.fromtimestamp(t0_1).strftime('%d-%b')})"
+fit2label = f"Best fit of last 7 days (since {dt.datetime.fromtimestamp(t0_2).strftime('%d-%b')})"
 
 for r in c.region_total_cases():
-    print(r)
-
+    name=r[0]
+    cases=r[1]
+    deaths=r[2]
+    recovered=r[3]
+    if cases is None:
+        cases=0
+    if deaths is None:
+        deaths=0
+    if recovered is None:
+        recovered=0
+    if cases>0.0:
+        drate=f' ({100.0*deaths/cases:.2f}%)'
+    else:
+        drate=''
+    print(f"{name}: {cases} cases, {deaths} deaths{drate}, {cases-recovered} active, {recovered} recovered")
 plot_regions=(
-#'Australia',
-#'New Zealand',
 )
 if wa_only:
     plot_states=(
         'Western Australia',
     )
     fit_regions=(
-    'Western Australia',
+        'Western Australia',
     )
 else:
     plot_states=(
@@ -93,25 +113,24 @@ else:
     'South Australia',
     'Western Australia',
     'Northern Territory',
-    'Australian Capital Territory',
-    'Tasmania',
+    #'Australian Capital Territory',
+    #'Tasmania',
     )
     fit_regions=(
-    #'Australia',
+    'Australia',
     'New South Wales',
     'Queensland',
     'Victoria',
     'South Australia',
     'Western Australia',
     'Northern Territory',
-    'Australian Capital Territory',
-    'Tasmania',
-    #'New Zealand',
+    'New Zealand',
+    #'Australian Capital Territory',
+    #'Tasmania',
     )
 plot_colours={
-'Italy':'royalblue',
+'Australia':'royalblue',
 'Korea, South':'lightsteelblue',
-'Australia':'red',
 'New Zealand':'y',
 'Australian Capital Territory':'magenta',
 'Northern Territory':'lightpink',
@@ -252,6 +271,29 @@ for n in range(0,len(active_data)):
         #fit_lines.append(fit_ln)
         fit2_data[s.name]=[t,y_fit]
 
+fit3_data = {}
+tmax=0
+for n in range(0,len(active_data)):
+    #s=active_data[n]
+    s=case_data[n]
+    if s.name in fit_regions:
+        # Generate look-ahead data based on exponenetial best fit
+        #idx=np.argwhere(s.y > 50.0)
+        idx=np.argwhere(s.t >= t0_2)
+        t_fit=s.t[idx[0][0]:]-tmin_ts
+        y_fit=np.log(s.y[idx[0][0]:])
+        curve_fit=np.polyfit(t_fit,y_fit,1,w=np.sqrt(y_fit))
+        t_fit=np.arange(t0_2,tmax_ts,86400.0)-tmin_ts # Generate t axis with look-ahead 10 days
+        y_fit = np.exp(curve_fit[1]) * np.exp(curve_fit[0]*t_fit)
+        #print(t_fit,y_fit)
+        t=[]
+        for tval in t_fit:
+            t.append(dt.datetime.fromtimestamp(int(tval+tmin_ts)))
+            if tval>tmax: tmax=tval
+        #fit_ln,=ax1.semilogy(t,y_fit,':',color=plot_colours[s.name])
+        #fit_lines.append(fit_ln)
+        fit3_data[s.name]=[t,y_fit]
+
 c.close()
 ##########################################################################################
 #fig1, ax = plt.subplots(2,1)
@@ -278,6 +320,22 @@ for n in range(0,len(active_data)):
     else:
         ln.set_label(s.name)
     lines.append(ln)
+    if wa_only:
+        color1='royalblue'
+        color2='royalblue'
+        color3='royalblue'
+        color4='red'
+        line_stylea='-'
+        line_styleb='--'
+        line_stylec=':'
+    else:
+        color1=plot_colours[s.name]
+        color2=plot_colours[s.name]
+        color3=plot_colours[s.name]
+        color4=plot_colours[s.name]
+        line_stylea='-'
+        line_styleb='--'
+        line_stylec=':'
     if s.name in fit_data.keys():
         """
         # Generate look-ahead data based on exponenetial best fit
@@ -293,27 +351,17 @@ for n in range(0,len(active_data)):
             t.append(dt.datetime.fromtimestamp(int(tval+tmin_ts)))
             #if tval>tmax: tmax=tval
         """
-        if wa_only:
-            color1='royalblue'
-            color2='green'
-            color3='red'
-            line_stylea='-'
-            line_styleb='-'
-        else:
-            color1=plot_colours[s.name]
-            color2=plot_colours[s.name]
-            color3=plot_colours[s.name]
-            line_stylea='+'
-            line_styleb='*'
         lna,=ax1.semilogy(fit_data[s.name][0],fit_data[s.name][1],line_stylea,color=color1,alpha=0.5)
         lnb,=ax1.semilogy(fit2_data[s.name][0],fit2_data[s.name][1],line_styleb,color=color2,alpha=0.5)
+        lnc,=ax1.semilogy(fit3_data[s.name][0],fit3_data[s.name][1],line_stylec,color=color3,alpha=0.5)
         if wa_only:
-            lna.set_label(f"Best fit using data since {dt.datetime.fromtimestamp(t0_0).strftime('%d-%b')}")
+            lna.set_label(fit0label)
             lines.append(lna)
-        if wa_only:
-            lnb.set_label(f"Best fit using data since {dt.datetime.fromtimestamp(t0_1).strftime('%d-%b')}")
+            lnb.set_label(fit1label)
             lines.append(lnb)
-    ln,=ax1.semilogy(tlims,[max_active_cases[s.name],max_active_cases[s.name]],'-',color=color3,alpha=0.5)
+            lnc.set_label(fit2label)
+            lines.append(lnc)
+    ln,=ax1.semilogy(tlims,[max_active_cases[s.name],max_active_cases[s.name]],'-',color=color4,alpha=0.5)
     ln.set_label(f"Limit of ICU beds (assuming 5% severe rate)")
     lines.append(ln)
 #tmax=35
