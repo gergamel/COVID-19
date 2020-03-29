@@ -261,7 +261,7 @@ for n in range(0,len(case_data)):
         fit_lines.append(fit_ln)
     n+=1
 #tmax=35
-ymax=100000
+ymax=200000
 tlims=[tmin,tmax]
 setup_taxis(ax1,"",tlims,[5,1],color='black')
 setup_logyaxis(ax1,"Active Cases",[100,ymax],[ymax/10,ymax/20],color='black')
